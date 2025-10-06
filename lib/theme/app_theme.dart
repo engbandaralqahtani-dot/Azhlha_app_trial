@@ -116,6 +116,7 @@ class AppTheme {
   static final ThemeData theme = ThemeData(
     primaryColor: primary,
     scaffoldBackgroundColor: background,
+    useMaterial3: true,
     colorScheme: ColorScheme.fromSeed(
       seedColor: primary,
       secondary: secondary,

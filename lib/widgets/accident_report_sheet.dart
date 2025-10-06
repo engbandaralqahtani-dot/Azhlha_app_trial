@@ -1,8 +1,13 @@
 import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+
+import '../models/accident_report.dart';
 import '../providers/accident_provider.dart';
 
 class AccidentReportSheet extends StatefulWidget {
@@ -19,6 +24,7 @@ class _AccidentReportSheetState extends State<AccidentReportSheet> {
   final List<XFile> _images = [];
   final ImagePicker _picker = ImagePicker();
   late GoogleMapController _mapController;
+  bool _submitting = false;
 
   @override
   Widget build(BuildContext context) {
@@ -176,13 +182,22 @@ class _AccidentReportSheetState extends State<AccidentReportSheet> {
 
   Widget _buildSubmitButton() {
     return ElevatedButton(
-      onPressed: _submitReport,
+      onPressed: _submitting ? null : _submitReport,
       style: ElevatedButton.styleFrom(
         backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.white,
         padding: const EdgeInsets.all(16),
       ),
-      child: const Text('إرسال البلاغ'),
+      child: _submitting
+          ? const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            )
+          : const Text('إرسال البلاغ'),
     );
   }
 
@@ -198,24 +213,75 @@ class _AccidentReportSheetState extends State<AccidentReportSheet> {
   }
 
   Future<void> _submitReport() async {
-    if (_formKey.currentState!.validate() && _selectedLocation != null) {
-      try {
-        // TODO: Submit report using AccidentProvider
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم إرسال البلاغ بنجاح')),
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('حدث خطأ: $e')),
-        );
-      }
-    } else {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (_selectedLocation == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('الرجاء تحديد موقع الحادث وملء جميع الحقول'),
+          content: Text('الرجاء تحديد موقع الحادث قبل إرسال البلاغ'),
         ),
       );
+      return;
+    }
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('يرجى تسجيل الدخول لإرسال البلاغ'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+    });
+
+    try {
+      final provider = context.read<AccidentReportProvider>();
+      final reportId = FirebaseFirestore.instance.collection('accidents').doc().id;
+      final now = DateTime.now();
+
+      final report = AccidentReport(
+        id: reportId,
+        userId: user.uid,
+        description: _descriptionController.text.trim(),
+        timestamp: now,
+        latitude: _selectedLocation!.latitude,
+        longitude: _selectedLocation!.longitude,
+        images: const [],
+        status: 'pending',
+        towTruckId: null,
+        repairShopId: null,
+        statusTimeline: {
+          'reported': now,
+        },
+      );
+
+      await provider.createReport(
+        report,
+        _images.map((image) => image.path).toList(),
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم إرسال البلاغ بنجاح')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('حدث خطأ أثناء إرسال البلاغ: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+        });
+      }
     }
   }
 }
