@@ -41,8 +41,20 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text,
       );
 
+      if (!mounted) return;
+
       if (res != null) {
-        if (!mounted) return;
+        if (res == AuthService.emailNotVerifiedCode) {
+          setState(() {
+            _loading = false;
+            _error =
+                'تم تسجيل الدخول بنجاح، يرجى تفعيل بريدك الإلكتروني للمتابعة.';
+          });
+          Navigator.of(context)
+              .pushNamedAndRemoveUntil('/verify-email', (route) => false);
+          return;
+        }
+
         setState(() {
           _error = res;
           _loading = false;
@@ -50,7 +62,9 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      if (!mounted) return;
+      setState(() {
+        _loading = false;
+      });
 
       // نجاح تسجيل الدخول
       ScaffoldMessenger.of(context).showSnackBar(
@@ -60,7 +74,8 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
 
-      Navigator.of(context).pushReplacementNamed('/home');
+      Navigator.of(context)
+          .pushNamedAndRemoveUntil('/home', (route) => false);
     } catch (e) {
       setState(() {
         _error = 'حدث خطأ غير متوقع. الرجاء المحاولة مرة أخرى.';
@@ -213,7 +228,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: _loading
                         ? null
                         : () {
-                            Navigator.of(context).pushNamed('/forgot');
+                            Navigator.of(context)
+                                .pushNamed('/forgot-password');
                           },
                     child: const Text('نسيت كلمة المرور؟'),
                   ),

@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/app_provider.dart';
 import '../widgets/service_card.dart';
 import '../widgets/stats_card.dart';
 import '../widgets/active_order_card.dart';

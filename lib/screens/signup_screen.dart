@@ -67,15 +67,17 @@ class _SignupScreenState extends State<SignupScreen> {
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('تم إنشاء الحساب'),
-          content:
-              const Text('تم إنشاء الحساب بنجاح! يمكنك الآن تسجيل الدخول.'),
+          content: const Text(
+            'تم إنشاء حسابك بنجاح. تم إرسال رسالة تفعيل إلى بريدك الإلكتروني، يرجى تأكيده للمتابعة.',
+          ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                Navigator.of(context).pop(); // العودة لشاشة تسجيل الدخول
+                Navigator.of(context)
+                    .pushNamedAndRemoveUntil('/verify-email', (route) => false);
               },
-              child: const Text('موافق'),
+              child: const Text('متابعة'),
             ),
           ],
         ),

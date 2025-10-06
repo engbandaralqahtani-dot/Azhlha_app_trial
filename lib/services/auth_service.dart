@@ -1,8 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 
 class AuthService {
+  static const String emailNotVerifiedCode = 'EMAIL_NOT_VERIFIED';
+
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -67,20 +70,29 @@ class AuthService {
         password: password,
       );
 
-      if (userCred.user == null) {
+      await userCred.user?.reload();
+      final user = _auth.currentUser;
+
+      if (user == null) {
         return 'فشل في تسجيل الدخول';
       }
 
       // التحقق من تأكيد البريد الإلكتروني
-      if (!userCred.user!.emailVerified) {
-        await _auth.signOut();
-        return 'يجب تفعيل البريد الإلكتروني أولاً.';
+      if (!user.emailVerified) {
+        try {
+          await user.sendEmailVerification();
+        } catch (e) {
+          debugPrint('Failed to send verification email: $e');
+        }
+        return emailNotVerifiedCode;
       }
 
-      // تحديث آخر تسجيل دخول
-      await _firestore.collection('users').doc(userCred.user!.uid).update({
+      // تحديث آخر تسجيل دخول وإنشاء الوثيقة في حال عدم وجودها
+      await _firestore.collection('users').doc(user.uid).set({
         'lastLogin': FieldValue.serverTimestamp(),
-      });
+        'email': user.email,
+        'emailVerified': user.emailVerified,
+      }, SetOptions(merge: true));
 
       return null;
     } on FirebaseAuthException catch (e) {
